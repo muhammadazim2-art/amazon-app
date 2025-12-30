@@ -5,7 +5,7 @@ import plotly.express as px  # 🔥 新增
 # ==========================================
 # 1. 技能区 (Functions)
 # ==========================================
-
+#上传文件
 @st.cache_data 
 def load_data(file):
     if file.name.endswith('.csv'):
@@ -16,16 +16,13 @@ def load_data(file):
             return pd.read_csv(file, encoding='gbk')
     else:
         return pd.read_excel(file)
-
+#计算核心值
 def calculate_kpi(df):
     total_revenue = df['Total_Sales'].sum()
     total_quantity = df['Amount'].sum()
     return total_revenue, total_quantity
-
+#绘图
 def plot_charts(df):
-    """
-    🔥 新增技能：绘制高级图表
-    """
     # 1. 折线图
     daily_trend = df.groupby('Date')['Total_Sales'].sum().reset_index()
     fig_trend = px.line(
@@ -47,7 +44,20 @@ def plot_charts(df):
     )
     
     return fig_trend, fig_pie
+#利润率自动生成建议
+def generate_summary(revenue,profit,margin):
+    summary=f'本期经营报告\n\n'
+    summary+=f'总销售额达到了{revenue:,.2f}。\n'
+    summary+=f'预估净利润为{profit:,.2f}(利润率{margin*100:.1f}%)。\n\n'
+    if margin < 0.1:
+        summary += "⚠️ **风险预警**：利润率低于 10%，建议检查广告支出或重新定价！"
+    elif margin >= 0.3:
+        summary += "🚀 **表现优异**：高利润产品，建议加大库存周转！"
+    else:
+        summary += "✅ **运营稳健**：利润率在正常区间，请保持当前策略。"
+    return summary
 
+   
 # ==========================================
 # 2. 主程序区 (Main App)
 # ==========================================
@@ -80,7 +90,9 @@ if uploaded_file is not None:
         filtered_df['Estimated_Profit'] = filtered_df['Total_Sales'] * profit_margin
         total_profit=filtered_df['Estimated_Profit'].sum()
         revenue, quantity = calculate_kpi(filtered_df)
-        
+        #智能分析
+        st.info(generate_summary(revenue, total_profit, profit_margin))
+        #核心指标卡
         st.divider()
         c1, c2 ,c3= st.columns(3)
         with c1:
@@ -108,6 +120,15 @@ if uploaded_file is not None:
         
         st.subheader(f"🏆 {period_name} 热销榜单")
         st.dataframe(top_5, hide_index=True, use_container_width=True)
+
+        #下载按钮
+        csv=top_5.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="下载榜单数据(CSV)",
+            data=csv,
+            file_name='top_5_products.csv'
+            mime='text/csv' 
+            )
             
     except Exception as e:
         st.error(f"发生错误：{e}")
