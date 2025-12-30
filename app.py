@@ -128,7 +128,7 @@ if uploaded_file is not None:
             st.plotly_chart(fig_2, use_container_width=True)
 
         # 下面的表格逻辑不变
-        result_df = filtered_df.groupby('SKU')[['Total_Sales', 'Gross_Profit']].sum().reset_index()
+        result_df = filtered_df.groupby('SKU')[['Total_Sales', 'Gross_Profit','Amount']].sum().reset_index()
         sorted_df = result_df.sort_values(by='Gross_Profit', ascending=False) # 按赚钱多少排
         top_5 = sorted_df.head(5)
         
