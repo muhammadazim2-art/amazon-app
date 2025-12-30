@@ -67,7 +67,7 @@ if uploaded_file is not None:
         #侧边栏利润率滑块
         st.sidebar.divider()
         st.sidebar.header('利润分析')
-        profit_margin=st.sidebar.slider('预估利润率(Profit Margin)',0.0,1,0.2)
+        profit_margin=st.sidebar.slider('预估利润率(Profit Margin)',0.0,1.0,0.2)
         
         if selected_date == '所有日期':
             filtered_df = df
@@ -77,7 +77,7 @@ if uploaded_file is not None:
             period_name = selected_date
         
         filtered_df['Total_Sales'] = filtered_df['Price'] * filtered_df['Amount']
-        filtered_df['Estimated_Profit'] = filtered_df['PrTotal_Sales'] * profit_margin
+        filtered_df['Estimated_Profit'] = filtered_df['Total_Sales'] * profit_margin
         total_profit=filtered_df['Estimated_Profit'].sum()
         revenue, quantity = calculate_kpi(filtered_df)
         
