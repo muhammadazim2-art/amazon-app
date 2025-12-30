@@ -78,7 +78,7 @@ if uploaded_file is not None:
         st.sidebar.divider()
         st.sidebar.header('利润分析')
         gross_margin=st.sidebar.slider('预估毛利率(Gross Margin)',0.0,1.0,0.30)
-        ad_spend=st.sidebar.number_input('本期广告费(Ads Spend)',value=0.0,step=100)
+        ad_spend=st.sidebar.number_input('本期广告费(Ads Spend)',value=0.0,step=100.0)
         other_costs = st.sidebar.number_input('其他成本 (运费/人工)', value=0.0, step=100.0)
 
         if selected_date == '所有日期':
