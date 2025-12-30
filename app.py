@@ -60,10 +60,14 @@ uploaded_file = st.file_uploader("请上传销售报表 (CSV/Excel)", type=['csv
 if uploaded_file is not None:
     try:
         df = load_data(uploaded_file)
-        
+        #侧边栏日期
         all_dates = ['所有日期'] + list(df['Date'].unique())
         st.sidebar.header("🔍 筛选条件")
         selected_date = st.sidebar.selectbox("请选择日期", all_dates)
+        #侧边栏利润率滑块
+        st.sidebar.divider()
+        st.sidebar.header('利润分析')
+        profit_margin=st.sidebar.slider('预估利润率(Profit Margin)',0.0,1,0.2)
         
         if selected_date == '所有日期':
             filtered_df = df
@@ -73,15 +77,18 @@ if uploaded_file is not None:
             period_name = selected_date
         
         filtered_df['Total_Sales'] = filtered_df['Price'] * filtered_df['Amount']
-        
+        filtered_df['Estimated_Profit'] = filtered_df['PrTotal_Sales'] * profit_margin
+        total_profit=filtered_df['Estimated_Profit'].sum()
         revenue, quantity = calculate_kpi(filtered_df)
         
         st.divider()
-        c1, c2 = st.columns(2)
+        c1, c2 ,c3= st.columns(3)
         with c1:
             st.metric("💰 总销售额", f"¥{revenue:,.2f}")
         with c2:
             st.metric("📦 总销量", f"{quantity} 件")
+        with c3:
+            st.metric("¥ 预估净利润", f"¥{total_profit:,.2f}", f"利润率 {profit_margin*100}%")
         st.divider()
 
         # 🔥 调用绘图函数
