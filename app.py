@@ -110,7 +110,7 @@ if uploaded_file is not None:
         with c2:
             st.metric("📦 总销量", f"{quantity} 件")
         with c3:
-            st.metric("¥ 预估净利润", f"¥{total_profit:,.2f}", f"利润率 {profit_margin*100}%")
+            st.metric("¥ 预估净利润", f"¥{net_profit:,.2f}", f"利润率 {real_margin*100}%")
         with c4:
             st.metric("💸 广告&杂费", f"-¥{ad_spend + other_costs:,.2f}")
         st.divider()
