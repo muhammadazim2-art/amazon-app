@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px  # 🔥 新增
+import plotly.express as px 
 
 # ==========================================
 # 1. 技能区 (Functions)
@@ -70,14 +70,15 @@ uploaded_file = st.file_uploader("请上传销售报表 (CSV/Excel)", type=['csv
 if uploaded_file is not None:
     try:
         df = load_data(uploaded_file)
+        #检查是否包含成本列
+        if 'Unit_Cost' not in df.columns:
+            st.error ("❌ 你的表格缺少 'Unit_Cost' (成本) 列！请在 Excel 里加上这一列，才能算出精准利润。")
+            st.stop()#停止运行
         #侧边栏日期
         all_dates = ['所有日期'] + list(df['Date'].unique())
         st.sidebar.header("🔍 筛选条件")
         selected_date = st.sidebar.selectbox("请选择日期", all_dates)
         #侧边栏利润率滑块
-        st.sidebar.divider()
-        st.sidebar.header('利润分析')
-        gross_margin=st.sidebar.slider('预估毛利率(Gross Margin)',0.0,1.0,0.30)
         ad_spend=st.sidebar.number_input('本期广告费(Ads Spend)',value=0.0,step=100.0)
         other_costs = st.sidebar.number_input('其他成本 (运费/人工)', value=0.0, step=100.0)
 
@@ -88,9 +89,10 @@ if uploaded_file is not None:
             filtered_df = df[df['Date'] == selected_date]
             period_name = selected_date
         
-        filtered_df['Total_Sales'] = filtered_df['Price'] * filtered_df['Amount']#总销售
-        filtered_df['Gross_Profit'] = filtered_df['Total_Sales'] * gross_margin#毛利
-        total_revenue = filtered_df['Total_Sales'].sum()#总计营业额
+        filtered_df['Total_Sales'] = filtered_df['Price'] * filtered_df['Amount']#单个产品总销售额
+        filtered_df['Total_Cost'] = filtered_df['Unit_Cost'] * filtered_df['Amount']#总成本
+        filtered_df['Gross_Profit'] = filtered_df['Total_Sales'] - filtered_df['Total_Cost']#单个产品毛利
+        total_revenue = filtered_df['Total_Sales'].sum()#总计销售额
         total_gross_profit = filtered_df['Gross_Profit'].sum()#总计毛利
         net_profit = total_gross_profit - ad_spend - other_costs#净利润
         if total_revenue>0:
@@ -110,12 +112,12 @@ if uploaded_file is not None:
         with c2:
             st.metric("📦 总销量", f"{quantity} 件")
         with c3:
-            st.metric("¥ 预估净利润", f"¥{net_profit:,.2f}", f"利润率 {real_margin*100}%")
+            st.metric("¥ 最终净利润", f"¥{net_profit:,.2f}", f"{real_margin*100:.1f}%")
         with c4:
             st.metric("💸 广告&杂费", f"-¥{ad_spend + other_costs:,.2f}")
         st.divider()
 
-        # 🔥 调用绘图函数
+        # 调用绘图函数
         fig_1, fig_2 = plot_charts(filtered_df)
         
         # 左右布局展示图表
@@ -126,8 +128,8 @@ if uploaded_file is not None:
             st.plotly_chart(fig_2, use_container_width=True)
 
         # 下面的表格逻辑不变
-        result_df = filtered_df.groupby('SKU')['Total_Sales'].sum().reset_index()
-        sorted_df = result_df.sort_values(by='Total_Sales', ascending=False)
+        result_df = filtered_df.groupby('SKU')[['Total_Sales', 'Gross_Profit']].sum().reset_index()
+        sorted_df = result_df.sort_values(by='Gross_Profit', ascending=False) # 按赚钱多少排
         top_5 = sorted_df.head(5)
         
         st.subheader(f"🏆 {period_name} 热销榜单")
