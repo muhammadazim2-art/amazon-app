@@ -77,8 +77,10 @@ if uploaded_file is not None:
         #侧边栏利润率滑块
         st.sidebar.divider()
         st.sidebar.header('利润分析')
-        profit_margin=st.sidebar.slider('预估利润率(Profit Margin)',0.0,1.0,0.2)
-        
+        gross_margin=st.sidebar.slider('预估毛利率(Gross Margin)',0.0,1.0,0.30)
+        ad_spend=st.sidebar.number_input('本期广告费(Ads Spend)',value=0.0,step=100)
+        other_costs = st.sidebar.number_input('其他成本 (运费/人工)', value=0.0, step=100.0)
+
         if selected_date == '所有日期':
             filtered_df = df
             period_name = "所有历史数据"
@@ -86,21 +88,31 @@ if uploaded_file is not None:
             filtered_df = df[df['Date'] == selected_date]
             period_name = selected_date
         
-        filtered_df['Total_Sales'] = filtered_df['Price'] * filtered_df['Amount']
-        filtered_df['Estimated_Profit'] = filtered_df['Total_Sales'] * profit_margin
-        total_profit=filtered_df['Estimated_Profit'].sum()
+        filtered_df['Total_Sales'] = filtered_df['Price'] * filtered_df['Amount']#总销售
+        filtered_df['Gross_Profit'] = filtered_df['Total_Sales'] * gross_margin#毛利
+        total_revenue = filtered_df['Total_Sales'].sum()#总计营业额
+        total_gross_profit = filtered_df['Gross_Profit'].sum()#总计毛利
+        net_profit = total_gross_profit - ad_spend - other_costs#净利润
+        if total_revenue>0:
+            real_margin=net_profit/total_revenue
+        else:
+            real_margin=0
+
         revenue, quantity = calculate_kpi(filtered_df)
+
         #智能分析
-        st.info(generate_summary(revenue, total_profit, profit_margin))
+        st.info(generate_summary(revenue, net_profit, real_margin))
         #核心指标卡
         st.divider()
-        c1, c2 ,c3= st.columns(3)
+        c1, c2 ,c3,c4= st.columns(4)
         with c1:
             st.metric("💰 总销售额", f"¥{revenue:,.2f}")
         with c2:
             st.metric("📦 总销量", f"{quantity} 件")
         with c3:
             st.metric("¥ 预估净利润", f"¥{total_profit:,.2f}", f"利润率 {profit_margin*100}%")
+        with c4:
+            st.metric("💸 广告&杂费", f"-¥{ad_spend + other_costs:,.2f}")
         st.divider()
 
         # 🔥 调用绘图函数
