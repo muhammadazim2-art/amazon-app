@@ -30,7 +30,11 @@ LANG_DICT = {
         "report_header": "本期经营报告",
         "error_cost": "❌ 你的表格缺少 'Unit_Cost' (成本) 列！",
         "filter_header":"🔍 筛选条件",
-        "select_date":"请选择日期"
+        "select_date":"请选择日期",
+        "vampire_title": "🧛‍♂️ 广告吸血鬼诊断",
+        "vampire_help": "以下 SKU 广告投入产出比(ROAS)极低,正在吃掉你的利润！",
+        "roas_label": "广告支出回报率 (ROAS)",
+        "recommend_action": "优化建议：建议削减广告预算或重新检查 Listing。",
     },
     "en": {
         "title": "📦 Amazon Best-Seller Analyzer v0.7",
@@ -56,7 +60,12 @@ LANG_DICT = {
         "report_header": "Business Performance Report",
         "error_cost": "❌ Missing 'Unit_Cost' column in your file!",
         "filter_header": "🔍 Filters",
-        "select_date":"Select Date"
+        "select_date":"Select Date",
+        "vampire_title": "🧛‍♂️ Ad Vampire Detection",
+        "vampire_help": "The following SKUs have extremely low ROAS and are eating your profits!",
+        "roas_label": "ROAS (Return on Ad Spend)",
+        "recommend_action": "Action: Reduce ad budget or audit Product Listing immediately.",
+
     }
 }
 
@@ -177,8 +186,24 @@ if uploaded_file is not None:
             st.metric(text["metric_profit"], f"{text['sign']}{net_profit:,.2f}", f"{real_margin*100:.1f}%")
         with c4:
             st.metric(text["ad_spend"], f"{text['sign']}{ad_spend + other_costs:,.2f}")
+        #广告吸血鬼
         st.divider()
-
+        st.subheader(text['vampire_title'])
+        sku_group=filtered_df.groupby('SKU').agg({
+            'Total_Sales':'sum',
+            'Gross_Profit':'sum'
+            }).reset_index()
+        avg_ad_per_sku=(ad_spend+other_costs)/len(sku_group) if len(sku_group)>0 else 0
+        sku_group['ROAS']=sku_group['Total_Sales']/(avg_ad_per_sku+0.01)
+        vampires=sku_group[sku_group['ROAS']<2.0].sort_values(by='ROAS')
+        if not vampires.empty:
+            st.warning(text['vampire_help'])
+            vampire_display = vampires[['SKU', 'Total_Sales', 'ROAS']]
+            vampire_display.columns = ['SKU', text['metric_sales'], text['roas_label']]
+            st.dataframe(vampire_display, use_container_width=True, hide_index=True)
+            st.info(text["recommend_action"])
+        else:
+            st.success("✅ Excellent! No Ad Vampires detected in this period.")
         # 调用绘图函数
         fig_1, fig_2 = plot_charts(filtered_df,text)
         
@@ -194,7 +219,7 @@ if uploaded_file is not None:
         sorted_df = result_df.sort_values(by='Gross_Profit', ascending=False) # 按赚钱多少排
         top_5 = sorted_df.head(5)
         
-        st.subheader(f"🏆 {period_name} {text["table_title"]}")
+        st.subheader(f"🏆 {period_name} {text['table_title']}")
         st.dataframe(top_5, hide_index=True, use_container_width=True)
 
         #下载按钮
