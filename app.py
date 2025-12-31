@@ -135,12 +135,15 @@ text=LANG_DICT[lang]
 #设置页面标签
 st.set_page_config(page_title="亚马逊数据看板", layout="wide")
 st.title(text["title"])
-
-uploaded_file = st.file_uploader(text["upload_label"], type=['csv', 'xlsx'])
-
-if uploaded_file is not None:
+#加载文件
+uploaded_files = st.file_uploader(text["upload_label"], type=['csv', 'xlsx'],accept_multiple_files=True)
+if uploaded_files:
     try:
-        df = load_data(uploaded_file)
+        all_dfs = []
+        for file in uploaded_files:
+            temp_df = load_data(file)
+            all_dfs.append(temp_df)
+        df = pd.concat(all_dfs, ignore_index=True)
         #检查是否包含成本列
         if 'Unit_Cost' not in df.columns:
             st.error (text["error_cost"])
