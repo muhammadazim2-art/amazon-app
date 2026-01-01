@@ -207,7 +207,6 @@ if uploaded_files:
         total_revenue = filtered_df['Total_Sales'].sum()#总计销售额
         total_gross_profit = filtered_df['Gross_Profit'].sum()#总计毛利
         net_profit = total_gross_profit - ad_spend - other_costs#净利润
-        filtered_df['CVR']=filtered_df['Amount']/(filtered_df['Sessions']+0.01).clip(upper=1.0)
         if total_revenue>0:
             real_margin=net_profit/total_revenue
         else:
@@ -237,9 +236,11 @@ if uploaded_files:
             'Amount': 'sum',
             'Sessions': 'sum'
             }).reset_index()
-        avg_ad_per_sku=(ad_spend+other_costs)/len(sku_group) if len(sku_group)>0 else 0
-        sku_group['ROAS']=sku_group['Total_Sales']/(avg_ad_per_sku+0.01)
-        sku_group['CVR'] = sku_group['Amount'] / (sku_group['Sessions'] + 0.01)
+        total_sales_all = sku_group['Total_Sales'].sum()
+        sku_group['Ad_Share'] = (sku_group['Total_Sales'] / (total_sales_all + 0.01)) * (ad_spend + other_costs)
+        sku_group['ROAS']=sku_group['Total_Sales']/(sku_group['Ad_Share']+0.01)
+        sku_group['CVR'] = (sku_group['Amount'] / (sku_group['Sessions'] + 0.01)).clip(upper=1.0)
+        sku_group['Net_Profit'] = sku_group['Gross_Profit'] - sku_group['Ad_Share']
         vampires=sku_group[sku_group['ROAS']<2.0].sort_values(by='ROAS')
         if not vampires.empty:
             st.warning(text['vampire_help'])
@@ -262,15 +263,14 @@ if uploaded_files:
             st.plotly_chart(fig_2, use_container_width=True)
 
         # 下面的表格逻辑不变
-        result_df = filtered_df.groupby('SKU')[['Total_Sales', 'Gross_Profit','Amount']].sum().reset_index()
-        sorted_df = result_df.sort_values(by='Gross_Profit', ascending=False) # 按赚钱多少排
-        top_5 = sorted_df.head(5)
+        top_5 =sku_group.sort_values(by='Net_Profit', ascending=False).head(5) # 按赚钱多少排
+        
         
         st.subheader(f"🏆 {period_name} {text['table_title']}")
-        st.dataframe(top_5, hide_index=True, use_container_width=True)
+        st.dataframe(top_5[['SKU', 'Total_Sales', 'Net_Profit', 'Amount', 'CVR']], hide_index=True, use_container_width=True)
 
         #下载按钮
-        csv=top_5.to_csv(index=False).encode('utf-8')
+        csv=top_5.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
             label=text["download_btn"],
             data=csv,
