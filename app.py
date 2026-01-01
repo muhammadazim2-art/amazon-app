@@ -41,6 +41,7 @@ LANG_DICT = {
         "download_btn": "📥 下载榜单数据 (CSV)",
         "error_general": "❌ 发生错误",
         "upload_info": "👆 请上传文件以开始分析",
+        "filter_all": "📅 所有日期",
     },
     "en": {
         "title": "📦 Amazon Best-Seller Analyzer v0.7",
@@ -77,6 +78,7 @@ LANG_DICT = {
         "download_btn": "📥 Download Ranking (CSV)",
         "error_general": "❌ An Error Occurred",
         "upload_info": "👆 Please upload files to start analysis",
+        "filter_all": "📅 All Dates",
     }
 }
 
@@ -177,7 +179,7 @@ if uploaded_files:
             st.error (text["error_cost"])
             st.stop()#停止运行
         #侧边栏日期
-        all_dates = ['所有日期'] + list(df['Date'].unique())
+        all_dates = [text["filter_all"]] + list(df['Date'].unique())
         st.sidebar.header(text["filter_header"])
         selected_date = st.sidebar.selectbox(text["select_date"], all_dates)
         #侧边栏利润率滑块
