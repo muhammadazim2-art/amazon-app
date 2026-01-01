@@ -179,16 +179,16 @@ if uploaded_files:
             st.error (text["error_cost"])
             st.stop()#停止运行
         #侧边栏日期
-        all_dates = [text["filter_all"]] + list(df['Date'].unique())
         st.sidebar.header(text["filter_header"])
+        all_dates = [text["filter_all"]] + list(df['Date'].unique())
         selected_date = st.sidebar.selectbox(text["select_date"], all_dates)
         #侧边栏利润率滑块
-        ad_spend=st.sidebar.number_input('本期广告费(Ads Spend)',value=0.0,step=100.0)
-        other_costs = st.sidebar.number_input('其他成本 (运费/人工)', value=0.0, step=100.0)
+        ad_spend=st.sidebar.number_input(text["ad_spend"],value=0.0,step=100.0)
+        other_costs = st.sidebar.number_input(text["other_costs"], value=0.0, step=100.0)
 
-        if selected_date == '所有日期':
+        if selected_date == text["filter_all"]:
             filtered_df = df
-            period_name = "所有历史数据"
+            period_name = text["filter_all"]
         else:
             filtered_df = df[df['Date'] == selected_date]
             period_name = selected_date
