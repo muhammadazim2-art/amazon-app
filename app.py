@@ -35,7 +35,12 @@ LANG_DICT = {
         "vampire_help": "以下 SKU 广告投入产出比(ROAS)极低,正在吃掉你的利润！",
         "roas_label": "广告支出回报率 (ROAS)",
         "recommend_action": "优化建议：建议削减广告预算或重新检查 Listing。",
-        "metric_cvr": "转化率 (CVR)"
+        "metric_cvr": "转化率 (CVR)",
+        "error_no_sales": "❌ 请至少上传一份销售报表！",
+        "page_title": "亚马逊数据看板",
+        "download_btn": "📥 下载榜单数据 (CSV)",
+        "error_general": "❌ 发生错误",
+        "upload_info": "👆 请上传文件以开始分析",
     },
     "en": {
         "title": "📦 Amazon Best-Seller Analyzer v0.7",
@@ -67,7 +72,11 @@ LANG_DICT = {
         "roas_label": "ROAS (Return on Ad Spend)",
         "recommend_action": "Action: Reduce ad budget or audit Product Listing immediately.",
         "metric_cvr": "Conv. Rate (CVR)",
-
+        "error_no_sales": "❌ Please upload at least one Sales Report!",
+        "page_title": "Amazon Data Dashboard",
+        "download_btn": "📥 Download Ranking (CSV)",
+        "error_general": "❌ An Error Occurred",
+        "upload_info": "👆 Please upload files to start analysis",
     }
 }
 
@@ -135,7 +144,7 @@ lang_choice=st.sidebar.radio('Language/语言',['中文','English'])
 lang='zh' if lang_choice=='中文' else 'en'
 text=LANG_DICT[lang]
 #设置页面标签
-st.set_page_config(page_title="亚马逊数据看板", layout="wide")
+st.set_page_config(page_title=text["page_title"], layout="wide")
 st.title(text["title"])
 #加载文件
 uploaded_files = st.file_uploader(text["upload_label"], type=['csv', 'xlsx'],accept_multiple_files=True)
@@ -150,7 +159,7 @@ if uploaded_files:
             else:
                 sales_dfs.append(temp_df)
         if not sales_dfs:
-            st.warning('请至少上传一份销售报表！')
+            st.warning(text["error_no_sales"])
             st.stop()
         df_sales=pd.concat(sales_dfs,ignore_index=True)
 
@@ -253,13 +262,13 @@ if uploaded_files:
         #下载按钮
         csv=top_5.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="下载榜单数据(CSV)",
+            label=text["download_btn"],
             data=csv,
             file_name='top_5_products.csv',
             mime='text/csv' 
             )
             
     except Exception as e:
-        st.error(f"发生错误：{e}")
+        st.error(f"{text['error_general']}:{e}")
 else:
-    st.info("👆 请上传文件")
+    st.info(text["upload_info"])
