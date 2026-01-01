@@ -35,6 +35,7 @@ LANG_DICT = {
         "vampire_help": "以下 SKU 广告投入产出比(ROAS)极低,正在吃掉你的利润！",
         "roas_label": "广告支出回报率 (ROAS)",
         "recommend_action": "优化建议：建议削减广告预算或重新检查 Listing。",
+        "metric_cvr": "转化率 (CVR)"
     },
     "en": {
         "title": "📦 Amazon Best-Seller Analyzer v0.7",
@@ -65,6 +66,7 @@ LANG_DICT = {
         "vampire_help": "The following SKUs have extremely low ROAS and are eating your profits!",
         "roas_label": "ROAS (Return on Ad Spend)",
         "recommend_action": "Action: Reduce ad budget or audit Product Listing immediately.",
+        "metric_cvr": "Conv. Rate (CVR)",
 
     }
 }
@@ -139,11 +141,28 @@ st.title(text["title"])
 uploaded_files = st.file_uploader(text["upload_label"], type=['csv', 'xlsx'],accept_multiple_files=True)
 if uploaded_files:
     try:
-        all_dfs = []
+        sales_dfs=[]
+        traffic_dfs=[]
         for file in uploaded_files:
-            temp_df = load_data(file)
-            all_dfs.append(temp_df)
-        df = pd.concat(all_dfs, ignore_index=True)
+            temp_df=load_data(file)
+            if 'traffic' in file.name.lower():
+                traffic_dfs.append(temp_df)
+            else:
+                sales_dfs.append(temp_df)
+        if not sales_dfs:
+            st.warning('请至少上传一份销售报表！')
+            st.stop()
+        df_sales=pd.concat(sales_dfs,ignore_index=True)
+
+        if traffic_dfs:
+            df_traffic_all=pd.concat(traffic_dfs,ignore_index=True)
+            df_traffic_agg=df_traffic_all.groupby('SKU')['Sessions'].sum().reset_index()
+            #缝合
+            df=pd.merge(df_sales,df_traffic_agg,on='SKU',how='left')
+            df['Sessions']=df['Sessions'].fillna(0)
+        else:
+            df=df_sales
+            df['Sessions']=0
         #检查是否包含成本列
         if 'Unit_Cost' not in df.columns:
             st.error (text["error_cost"])
@@ -169,6 +188,7 @@ if uploaded_files:
         total_revenue = filtered_df['Total_Sales'].sum()#总计销售额
         total_gross_profit = filtered_df['Gross_Profit'].sum()#总计毛利
         net_profit = total_gross_profit - ad_spend - other_costs#净利润
+        filtered_df['CVR']=filtered_df['Amount']/(filtered_df['Sessions']+0.01)
         if total_revenue>0:
             real_margin=net_profit/total_revenue
         else:
@@ -194,19 +214,24 @@ if uploaded_files:
         st.subheader(text['vampire_title'])
         sku_group=filtered_df.groupby('SKU').agg({
             'Total_Sales':'sum',
-            'Gross_Profit':'sum'
+            'Gross_Profit':'sum',
+            'Amount': 'sum',
+            'Sessions': 'sum'
             }).reset_index()
         avg_ad_per_sku=(ad_spend+other_costs)/len(sku_group) if len(sku_group)>0 else 0
         sku_group['ROAS']=sku_group['Total_Sales']/(avg_ad_per_sku+0.01)
+        sku_group['CVR'] = sku_group['Amount'] / (sku_group['Sessions'] + 0.01)
         vampires=sku_group[sku_group['ROAS']<2.0].sort_values(by='ROAS')
         if not vampires.empty:
             st.warning(text['vampire_help'])
-            vampire_display = vampires[['SKU', 'Total_Sales', 'ROAS']]
-            vampire_display.columns = ['SKU', text['metric_sales'], text['roas_label']]
-            st.dataframe(vampire_display, use_container_width=True, hide_index=True)
+            vampire_display = vampires[['SKU', 'Total_Sales', 'ROAS','CVR']]
+            vampire_display.columns = ['SKU', text['metric_sales'], text['roas_label'], text['metric_cvr']]
+            st.dataframe(vampire_display.style.format({text['metric_cvr']: '{:.2%}'}), 
+                         use_container_width=True, hide_index=True)
             st.info(text["recommend_action"])
         else:
             st.success("✅ Excellent! No Ad Vampires detected in this period.")
+        
         # 调用绘图函数
         fig_1, fig_2 = plot_charts(filtered_df,text)
         
