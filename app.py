@@ -172,12 +172,12 @@ if uploaded_files:
             st.stop()
         df_sales=pd.concat(sales_dfs,ignore_index=True)
         df_sales=clean_data(df_sales)
-
+        #整合并缝合
         if traffic_dfs:
             df_traffic_all=pd.concat(traffic_dfs,ignore_index=True)
-            df_traffic_agg=df_traffic_all.groupby('SKU')['Sessions'].sum().reset_index()
-            #缝合
-            df=pd.merge(df_sales,df_traffic_agg,on='SKU',how='left')
+            df_traffic_all = clean_data(df_traffic_all)
+            df_traffic_agg=df_traffic_all.groupby(['SKU', 'Date'])['Sessions'].sum().reset_index()
+            df=pd.merge(df_sales,df_traffic_agg,on=['SKU', 'Date'],how='left')
             df['Sessions']=df['Sessions'].fillna(0)
         else:
             df=df_sales
@@ -190,16 +190,16 @@ if uploaded_files:
         st.sidebar.header(text["filter_header"])
         all_dates = [text["filter_all"]] + list(df['Date'].unique())
         selected_date = st.sidebar.selectbox(text["select_date"], all_dates)
-        #侧边栏利润率滑块
-        ad_spend=st.sidebar.number_input(text["ad_spend"],value=0.0,step=100.0)
-        other_costs = st.sidebar.number_input(text["other_costs"], value=0.0, step=100.0)
-
+        #日期筛选
         if selected_date == text["filter_all"]:
             filtered_df = df
             period_name = text["filter_all"]
         else:
-            filtered_df = df[df['Date'] == selected_date]
+            filtered_df = df[df['Date'] == selected_date].copy()
             period_name = selected_date
+        #侧边栏利润率滑块
+        ad_spend=st.sidebar.number_input(text["ad_spend"],value=0.0,step=100.0)
+        other_costs = st.sidebar.number_input(text["other_costs"], value=0.0, step=100.0)
         #计算核心数据
         filtered_df['Total_Sales'] = filtered_df['Price'] * filtered_df['Amount']#单个产品总销售额
         filtered_df['Total_Cost'] = filtered_df['Unit_Cost'] * filtered_df['Amount']#总成本
@@ -207,7 +207,7 @@ if uploaded_files:
         total_revenue = filtered_df['Total_Sales'].sum()#总计销售额
         total_gross_profit = filtered_df['Gross_Profit'].sum()#总计毛利
         net_profit = total_gross_profit - ad_spend - other_costs#净利润
-        filtered_df['CVR']=filtered_df['Amount']/(filtered_df['Sessions']+0.01)
+        filtered_df['CVR']=filtered_df['Amount']/(filtered_df['Sessions']+0.01).clip(upper=1.0)
         if total_revenue>0:
             real_margin=net_profit/total_revenue
         else:
