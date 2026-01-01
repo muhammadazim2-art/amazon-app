@@ -86,7 +86,7 @@ LANG_DICT = {
 # 1. 技能区 (Functions)
 # ==========================================
 #上传文件
-@st.cache_data 
+@st.cache_data
 def load_data(file):
     if file.name.endswith('.csv'):
         try:
@@ -136,8 +136,15 @@ def generate_summary(revenue,profit,margin,text):
     else:
         summary += text['advice_best']
     return summary
-
-   
+#清洗数据
+def clean_data(df):
+    df['Date']=pd.to_datetime(df['Date'],errors='coerce')
+    df=df.dropna(subset=['Date'])
+    df['SKU']=df['SKU'].astype(str).str.strip().str.upper()
+    if "Sessions" in df.columns:
+       df['Sessions']=pd.to_numeric(df['Sessions'],errors='coerce').fillna(0)
+    df = df.drop_duplicates()
+    return df
 # ==========================================
 # 2. 主程序区 (Main App)
 # ==========================================
@@ -164,6 +171,7 @@ if uploaded_files:
             st.warning(text["error_no_sales"])
             st.stop()
         df_sales=pd.concat(sales_dfs,ignore_index=True)
+        df_sales=clean_data(df_sales)
 
         if traffic_dfs:
             df_traffic_all=pd.concat(traffic_dfs,ignore_index=True)
