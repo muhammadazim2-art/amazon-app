@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px 
+#Date,SKU,Total_Sales,Amount,Unit_Cost,Price销售表 (sales.csv)
+#Date,SKU,Sessions,流量表 (traffic.csv)
+#SKU, Weight, Real_FBA_Fee,运费和商品重量product_info.csv
 # 语言字典
 # ==========================================
 # 全量语言词库 (Translation Dictionary)
@@ -145,6 +148,22 @@ def clean_data(df):
        df['Sessions']=pd.to_numeric(df['Sessions'],errors='coerce').fillna(0)
     df = df.drop_duplicates()
     return df
+#构建阶梯运费
+def calculate_fba_fee(weight):
+    if weight <= 1:
+        return 4.75
+    return 4.75+(weight-1)*0.5
+#三级逻辑计算运费
+def get_final_fba(row, fallback_fee):
+    # 第一级：真实费
+    if 'Real_FBA_Fee' in row and pd.notnull(row['Real_FBA_Fee']):
+        return row['Real_FBA_Fee']
+    # 第二级：重量计算
+    elif 'Weight' in row and pd.notnull(row['Weight']):
+        return calculate_fba_fee(row['Weight'])
+    # 第三级：兜底费
+    return fallback_fee
+
 # ==========================================
 # 2. 主程序区 (Main App)
 # ==========================================
@@ -159,12 +178,15 @@ st.title(text["title"])
 uploaded_files = st.file_uploader(text["upload_label"], type=['csv', 'xlsx'],accept_multiple_files=True)
 if uploaded_files:
     try:
-        sales_dfs=[]
-        traffic_dfs=[]
+        sales_dfs,traffic_dfs, product_info_df = [], [], None
+
         for file in uploaded_files:
             temp_df=load_data(file)
-            if 'traffic' in file.name.lower():
+            f_name = file.name.lower()
+            if 'traffic' in f_name:
                 traffic_dfs.append(temp_df)
+            elif 'product' in f_name:
+                product_info_df=temp_df
             else:
                 sales_dfs.append(temp_df)
         if not sales_dfs:
@@ -186,24 +208,41 @@ if uploaded_files:
         if 'Unit_Cost' not in df.columns:
             st.error (text["error_cost"])
             st.stop()#停止运行
+        #侧边栏手动设置佣金和FBA费
+        with st.sidebar.expander('精细化成本设置'):
+            referral_rate=st.slider('平台佣金比例(%)',0,30,15)/100
+            avg_fba_fee=st.number_input('平均单价FBA费',value=3.5,step=0.1)
+        #计算运费
+        if product_info_df is not None:
+            product_info_df['SKU'] = product_info_df['SKU'].astype(str).str.strip().str.upper()
+            df = pd.merge(df, product_info_df, on='SKU', how='left')
+        df['FBA_Single'] = df.apply(get_final_fba, axis=1, args=(avg_fba_fee,))
+        #计算总销售额
+        if 'Total_Sales' not in df.columns:
+            if 'Price' in df.columns and 'Amount' in df.columns:
+                df['Total_Sales'] = df['Price'] * df['Amount']
+            else:
+                st.error("表格中缺少 'Total_Sales' 或 'Price' 列，无法计算销售额")
         #侧边栏日期
         st.sidebar.header(text["filter_header"])
-        all_dates = [text["filter_all"]] + list(df['Date'].unique())
-        selected_date = st.sidebar.selectbox(text["select_date"], all_dates)
-        #日期筛选
+        df['Date_Only'] = df['Date'].dt.date
+        date_list = sorted(df['Date_Only'].unique(), reverse=True)
+        all_options = [text["filter_all"]] + date_list
+        selected_date = st.sidebar.selectbox(text["select_date"], all_options)
         if selected_date == text["filter_all"]:
-            filtered_df = df
+            filtered_df = df.copy()
             period_name = text["filter_all"]
         else:
-            filtered_df = df[df['Date'] == selected_date].copy()
-            period_name = selected_date
+            filtered_df = df[df['Date_Only'] == selected_date].copy()
+            period_name = str(selected_date)
         #侧边栏利润率滑块
         ad_spend=st.sidebar.number_input(text["ad_spend"],value=0.0,step=100.0)
         other_costs = st.sidebar.number_input(text["other_costs"], value=0.0, step=100.0)
         #计算核心数据
-        filtered_df['Total_Sales'] = filtered_df['Price'] * filtered_df['Amount']#单个产品总销售额
-        filtered_df['Total_Cost'] = filtered_df['Unit_Cost'] * filtered_df['Amount']#总成本
-        filtered_df['Gross_Profit'] = filtered_df['Total_Sales'] - filtered_df['Total_Cost']#单个产品毛利
+        filtered_df['Ref_Fee'] = filtered_df['Total_Sales'] * referral_rate#平台佣金
+        filtered_df['FBA_Total'] = filtered_df['FBA_Single'] * filtered_df['Amount']#运费
+        filtered_df['Total_Cost'] = filtered_df['Unit_Cost'] * filtered_df['Amount']#单个产品总成本
+        filtered_df['Gross_Profit'] = filtered_df['Total_Sales'] - filtered_df['Ref_Fee'] - filtered_df['FBA_Total'] - filtered_df['Total_Cost']#单个产品毛利
         total_revenue = filtered_df['Total_Sales'].sum()#总计销售额
         total_gross_profit = filtered_df['Gross_Profit'].sum()#总计毛利
         net_profit = total_gross_profit - ad_spend - other_costs#净利润
