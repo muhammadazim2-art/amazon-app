@@ -302,12 +302,10 @@ if uploaded_files:
             st.plotly_chart(fig_2, use_container_width=True)
 
         # 下面的表格逻辑不变
-        top_5 =sku_group.sort_values(by='Net_Profit', ascending=False).head(5) # 按赚钱多少排
-        
-        
+        top_5 = sku_group.sort_values(by='Net_Profit', ascending=False).head(5)
         st.subheader(f"🏆 {period_name} {text['table_title']}")
-        st.dataframe(top_5[['SKU', 'Total_Sales', 'Net_Profit', 'Amount', 'CVR']], hide_index=True, use_container_width=True)
-
+        st.dataframe(top_5[['SKU', 'Total_Sales', 'Net_Profit', 'Amount', 'CVR']].style.format({'CVR': '{:.2%}','Total_Sales': '{:,.2f}','Net_Profit': '{:,.2f}'}), hide_index=True, use_container_width=True)
+        
         #下载按钮
         csv=top_5.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
