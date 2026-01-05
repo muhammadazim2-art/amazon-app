@@ -1,9 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-#设置页面标签
-st.set_page_config(page_title=text["page_title"], layout="wide")
-st.title(text["title"])
 #Date,SKU,Total_Sales,Amount,Unit_Cost,Price销售表 (sales.csv)
 #Date,SKU,Sessions,流量表 (traffic.csv)
 #SKU, Weight, Real_FBA_Fee,运费和产品重量product_info.csv
@@ -148,7 +145,6 @@ LANG_DICT = {
         "error_inv_col": "❌ Missing column: Quantity_Available in Inventory Report",
           }
 }
-
 # ==========================================
 # 1. 技能区 (Functions)
 # ==========================================
@@ -274,10 +270,14 @@ def calculate_monthly_storage_fee(row):
 # ==========================================
 # 2. 主程序区 (Main App)
 # ==========================================
+#设置页面标签 (必须在所有命令之前)
+st.set_page_config(page_title="Amazon Analyzer", layout="wide")
 #让用户选择语言
 lang_choice=st.sidebar.radio('Language/语言',['中文','English'])
 lang='zh' if lang_choice=='中文' else 'en'
 text=LANG_DICT[lang]
+#标题
+st.title(text["title"])
 #ReadMe 说明指南和模板下载
 ### 职业化修正：集成四大标准模板下载 ###
 # --- README 引导区 (完全字典化版本) ---
