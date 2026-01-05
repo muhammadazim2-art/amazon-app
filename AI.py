@@ -551,7 +551,7 @@ if uploaded_files:
                 st.dataframe(
                     restock_df[display_cols].sort_values('Days_Left').style.format({
                         'V': '{:.2f}', 'Days_Left': '{:.1f}', 'Suggest': '{:.0f}'
-                    }).background_gradient(subset=['Days_Left'], cmap='RdYlGn_r', low=0, high=0.3),
+                    }).background_gradient(subset=['Days_Left'], cmap='RdYlGn', low=0, high=0.3),
                     use_container_width=True, hide_index=True
                 )
             else:
