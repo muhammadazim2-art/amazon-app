@@ -468,7 +468,9 @@ if uploaded_files:
 
         # 净利润 = 毛利 - 真实广告费 - 分摊杂费
         sku_group['Net_Profit'] = sku_group['Gross_Profit'] - sku_group['Real_Ad_Spend'] - sku_group['Other_Share']
-        
+
+        #计算销售广告总成本
+        sku_group['TACOS']=sku_group.apply(lambda x: x['Real_Ad_Spend']/x['Total_Sales'] if x['Total_Sales']>0 else 0,axis=1)
         # 计算 ROAS 和 CVR
         sku_group['ROAS'] = sku_group.apply(lambda x: x['Total_Sales'] / x['Real_Ad_Spend'] if x['Real_Ad_Spend'] > 0 else 0, axis=1)
         sku_group['CVR'] = sku_group.apply(lambda x: x['Amount'] / x['Sessions'] if x['Sessions'] > 0 else 0,axis=1).clip(upper=1.0)
@@ -544,11 +546,26 @@ if uploaded_files:
             st.plotly_chart(fig_1, use_container_width=True)
         with col2:
             st.plotly_chart(fig_2, use_container_width=True)
+        #库存周转率
+        if inventory_df is not None:
+            inv_simple = clean_data(inventory_df).rename(columns={
+                'afn-fulfillable-quantity': 'Qty', 
+                'Available': 'Qty', 
+                'Quantity_Available': 'Qty'
+            })[['SKU', 'Qty']].groupby('SKU')['Qty'].sum().reset_index()
+        
+            sku_group = pd.merge(sku_group, inv_simple, on='SKU', how='left')
+
+            sku_group['Turnover'] = sku_group.apply(
+            lambda x: x['Amount'] / x['Qty'] if (pd.notnull(x['Qty']) and x['Qty'] > 0) else 0, axis=1)
+        else:
+            sku_group['Turnover'] = 0
 
         # TOP5
         top_5 = sku_group.sort_values(by='Net_Profit', ascending=False).head(5)
         st.subheader(f"🏆 {period_name} {text['table_title']}")
-        st.dataframe(top_5[['SKU', 'Total_Sales', 'Net_Profit', 'Amount', 'CVR']].style.format({'CVR': '{:.2%}','Total_Sales': '{:,.2f}','Net_Profit': '{:,.2f}'}), hide_index=True, use_container_width=True)
+        st.dataframe(top_5[['SKU', 'Total_Sales', 'Net_Profit', 'Amount', 'CVR','TACOS', 'Turnover']].style.format({'CVR': '{:.2%}','Total_Sales': '{:,.2f}','Net_Profit': '{:,.2f}','TACOS': '{:.1%}',
+                            'Turnover': '{:.1f}'}), hide_index=True, use_container_width=True)
         csv = top_5.to_csv(index=False).encode('utf-8-sig')
         #下载榜单
         st.download_button(
