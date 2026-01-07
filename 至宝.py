@@ -416,7 +416,7 @@ if uploaded_files:
             'Total_Sales': 'sum',
             'Gross_Profit': 'sum',
             'Amount': 'sum',
-            'Sessions ': 'sum',
+            'Sessions': 'sum',
             'Storage_Total': 'sum'
         }).reset_index()
         #处理真实广告费
