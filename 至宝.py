@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import duckdb
 #设置页面标签 
 st.set_page_config(page_title="Amazon Analyzer", layout="wide")
 #Date,SKU,Total_Sales,Amount,Unit_Cost,Price销售表 (sales.csv)
@@ -415,7 +416,7 @@ if uploaded_files:
             'Total_Sales': 'sum',
             'Gross_Profit': 'sum',
             'Amount': 'sum',
-            'Sessions': 'sum',
+            'Sessions ': 'sum',
             'Storage_Total': 'sum'
         }).reset_index()
         #处理真实广告费
@@ -455,7 +456,7 @@ if uploaded_files:
         else:
             st.warning(text["warn_no_ad"])
             sku_group['Real_Ad_Spend'] = 0
-        # 其他杂费(Other Costs) 依然按销售额比例分摊，因为它是“杂费”
+        #总销售额
         total_sales_all = sku_group['Total_Sales'].sum()
         
         # 分摊杂费
@@ -642,3 +643,35 @@ if uploaded_files:
         st.error(f"{text['error_general']}:{e}")
 else:
     st.info(text["upload_info"])
+
+
+# ==========================================
+# --- 🔬 SQL 实验室 (新增功能) ---
+# ==========================================
+st.divider()
+st.header("🔬 SQL 高级实验室 (DuckDB引擎)")
+
+with st.expander("点击展开 SQL 控制台", expanded=False):
+    st.markdown("""
+    **说明**：你现在可以直接用 SQL 查询内存中的 `sku_group` 表（包含利润、ROAS等汇总数据）。
+    试试输入：`SELECT SKU, Net_Profit FROM sku_group WHERE Net_Profit < 0`
+    """)
+    
+    # 1. 提供一个输入框
+    default_sql = "SELECT * FROM sku_group LIMIT 5"
+    sql_query = st.text_area("输入你的 SQL 语句:", value=default_sql, height=150)
+    
+    # 2. 运行按钮
+    if st.button("🚀 运行 SQL 查询"):
+        if 'sku_group' in locals():
+            try:
+                # --- 见证奇迹的时刻 ---
+                # duckdb.query() 可以直接识别 Python 里的变量名！
+                query_result = duckdb.query(sql_query).df()
+                
+                st.success(f"查询成功！共找到 {len(query_result)} 条记录")
+                st.dataframe(query_result, use_container_width=True)
+            except Exception as e:
+                st.error(f"SQL 语法错误: {e}")
+        else:
+            st.error("❌ 数据未加载，请先上传报表！")
