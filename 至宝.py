@@ -370,11 +370,31 @@ if uploaded_files:
         if traffic_dfs:
             df_traffic_all=pd.concat(traffic_dfs,ignore_index=True)
             df_traffic_all = clean_data(df_traffic_all)
-            df_traffic_agg=df_traffic_all.groupby(['SKU', 'Date'])['Sessions'].sum().reset_index()
-            df=pd.merge(df,df_traffic_agg,on=['SKU', 'Date'],how='left')
-            df['Sessions']=df['Sessions'].fillna(0)
+            query="""
+            SELECT
+            df.*,
+            COALESCE(t.Sessions, 0) AS Sessions,
+            COALESCE(t.Impressions, 0) AS Impressions,
+            COALESCE(t.Clicks, 0) AS Clicks
+            FROM df
+            LEFT JOIN(
+            SELCET
+            SKU,
+            Date,
+            SUM(Sessions) AS Sessions,
+            SUM(Impressions) AS Impressions,
+            SUM(Clicks) AS Clicks
+            FROM df_traffic_all
+            GROUP BY SKU, Date
+            ) AS t
+            ON df.SKU = t.SKU AND df.Date = t.Date
+            """
+            df = duckdb.query(query).df()
         else:
-            df['Sessions']=0
+            df['Sessions'] = 0
+            df['Impressions'] = 0
+            df['Clicks'] = 0
+
         #检查是否包含成本列
         if 'Unit_Cost' not in df.columns:
             st.error (text["error_cost"])
@@ -417,7 +437,9 @@ if uploaded_files:
             'Gross_Profit': 'sum',
             'Amount': 'sum',
             'Sessions': 'sum',
-            'Storage_Total': 'sum'
+            'Storage_Total': 'sum',
+            'Impressions': 'sum',
+            'Clicks': 'sum'
         }).reset_index()
         #处理真实广告费
         if adv_dfs:
@@ -475,6 +497,8 @@ if uploaded_files:
         # 计算 ROAS 和 CVR
         sku_group['ROAS'] = sku_group.apply(lambda x: x['Total_Sales'] / x['Real_Ad_Spend'] if x['Real_Ad_Spend'] > 0 else 0, axis=1)
         sku_group['CVR'] = sku_group.apply(lambda x: x['Amount'] / x['Sessions'] if x['Sessions'] > 0 else 0,axis=1).clip(upper=1.0)
+        #点击率CTR
+        sku_group['CTR'] = sku_group.apply(lambda x: x['Clicks'] / x['Impressions'] if x['Impressions'] > 0 else 0, axis=1)
         #计算毛利率
         sku_group['Gross_Margin'] = (sku_group['Gross_Profit'] / sku_group['Total_Sales']).fillna(0)
         #计算盈亏平衡 ROAS(BE_ROAS)
@@ -565,7 +589,7 @@ if uploaded_files:
         # TOP5
         top_5 = sku_group.sort_values(by='Net_Profit', ascending=False).head(5)
         st.subheader(f"🏆 {period_name} {text['table_title']}")
-        st.dataframe(top_5[['SKU', 'Total_Sales', 'Net_Profit', 'Amount', 'CVR','TACOS', 'Turnover']].style.format({'CVR': '{:.2%}','Total_Sales': '{:,.2f}','Net_Profit': '{:,.2f}','TACOS': '{:.1%}',
+        st.dataframe(top_5[['SKU', 'Total_Sales', 'Net_Profit', 'Amount', 'CVR','TACOS', 'Turnover','CTR']].style.format({'CTR': '{:.2%}','CVR': '{:.2%}','Total_Sales': '{:,.2f}','Net_Profit': '{:,.2f}','TACOS': '{:.1%}',
                             'Turnover': '{:.1f}'}), hide_index=True, use_container_width=True)
         csv = top_5.to_csv(index=False).encode('utf-8-sig')
         #下载榜单
