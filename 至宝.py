@@ -378,7 +378,7 @@ if uploaded_files:
             COALESCE(t.Clicks, 0) AS Clicks
             FROM df
             LEFT JOIN(
-            SELCET
+            SELECT
             SKU,
             Date,
             SUM(Sessions) AS Sessions,
