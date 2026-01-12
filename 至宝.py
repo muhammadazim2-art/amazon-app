@@ -596,7 +596,9 @@ if uploaded_files:
         label=text["download_btn"],
         data=csv,
         file_name='top_5_products.csv',
-        mime='text/csv'
+        mime='text/csv')
+
+
         #广告吸血鬼
         st.divider()
         st.subheader(text['vampire_title'])
