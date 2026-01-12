@@ -741,37 +741,36 @@ with st.expander("点击展开 SQL 控制台", expanded=False):
 # --- 🎨 核心功能：全店销售漏斗 (Sales Funnel) ---
 # ==========================================
 st.divider()
-st.subheader(text["funnel_title"])
+st.subheader(text["funnel_title"]) # 使用字典标题
 
-# 1. 准备数据 (从 sku_group 汇总)
+# 1. 准备数据
 total_impressions = sku_group['Impressions'].sum()
 total_clicks = sku_group['Clicks'].sum()
 total_sessions = sku_group['Sessions'].sum()
-total_units = sku_group['Amount'].sum() # 假设 Amount 是销量(Units)
+total_units = sku_group['Amount'].sum()
 
 # 2. 绘制漏斗图
-fig_funnel = go.Figure(go.Funnel(#go.Figure: 就像是买了一块画布。go.Funnel: 告诉程序，我们要在这块画布上画一个“漏斗”。
-    y = [text["funnel_stages"]],
+fig_funnel = go.Figure(go.Funnel(
+    # 关键修改：直接读取字典里的列表 ["曝光量", "点击量"...]
+    y = text["funnel_stages"], 
     x = [total_impressions, total_clicks, total_sessions, total_units],
-    texttemplate = "%{value:,.0f}",  # 强制显示完整数字
     textposition = "inside",
-    textinfo = "value+percent previous", # 显示数值 + 占上一步的百分比
-    opacity = 0.65, #设置透明度。0.65 让颜色看起来不那么刺眼，更有质感。
-    marker = {"color": ["#2075b1", "#ff7f0e", "#2ca02c", "#d62728"]} # 蓝橙绿红配色
+    texttemplate = "%{value:,.0f}", # 强制显示完整数字
+    textinfo = "value+percent previous",
+    opacity = 0.65, 
+    marker = {"color": ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]}
 ))
 
-fig_funnel.update_layout( #update_layout: 调整画布的整体属性。
-    title_text=text["funnel_chart_title"],
+fig_funnel.update_layout(
+    title_text=text["funnel_chart_title"], # 使用字典图表标题
     height=400
 )
 
 st.plotly_chart(fig_funnel, use_container_width=True)
 
-# 3. 自动生成业务诊断 (Data Storytelling)
-# 这是一个高级分析师该干的事：不只给图，还给结论
+# 3. 智能诊断 (使用 .format 把数值填进字典的句子力)
 if total_impressions > 0:
     ctr = total_clicks / total_impressions
-    # 注意：这里计算的是 点击->访客 的流失，通常 Clicks 和 Sessions 应该接近
     click_quality = total_sessions / total_clicks if total_clicks > 0 else 0
     cvr = total_units / total_sessions if total_sessions > 0 else 0
 
@@ -779,7 +778,7 @@ if total_impressions > 0:
     
     # --- CTR 诊断 ---
     if ctr < 0.003:
-        st.error(text["diag_ctr_bad"].format(ctr)) # .format() 把数值填进字典的占位符里
+        st.error(text["diag_ctr_bad"].format(ctr)) # .format(ctr) 会把 ctr 的值填进 {:.2%} 里
     elif ctr > 0.01:
         st.success(text["diag_ctr_good"].format(ctr))
     else:
