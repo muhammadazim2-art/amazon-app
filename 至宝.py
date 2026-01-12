@@ -79,6 +79,23 @@ LANG_DICT = {
         "target_days_label": "目标库存覆盖天数",
         "tpl_inv": "📦 库存模板",
         "error_inv_col" :  "❌ 库存表中缺少关键列:Quantity_Available"
+        "funnel_title": "📢 全店流量转化漏斗 (Funnel Analysis)",
+        # === 漏斗图与诊断部分 ===
+        "funnel_stages": ["曝光量 (Impressions)", "点击量 (Clicks)", "访客数 (Sessions)", "销量 (Units)"],
+        "funnel_chart_title": "流量 -> 销量 转化链路",
+        "diag_title": "🕵️‍♂️ 亚马逊运营体检报告：",
+        # CTR 诊断语
+        "diag_ctr_bad": "❌ **主图急需优化 (CTR = {:.2%})**：低于 0.3% 的及格线。建议：重拍主图，或检查广告词是否太泛。",
+        "diag_ctr_mid": "⚠️ **主图表现平平 (CTR = {:.2%})**：在行业平均水平，还有提升空间。",
+        "diag_ctr_good": "✅ **主图很有吸引力 (CTR = {:.2%})**：表现优异！",
+        
+        # 点击质量诊断语
+        "diag_click_bad": "⚠️ **无效点击过多 (有效率 {:.0%})**：可能存在恶意点击，或网页加载太慢。",
+        
+        # CVR 诊断语
+        "diag_cvr_bad": "❌ **转化率偏低 (CVR = {:.2%})**：流量进来了留不住。建议：优化五点描述、增加好评、检查价格优势。",
+        "diag_cvr_mid": "ℹ️ **转化率正常 (CVR = {:.2%})**：符合大多数类目标准。",
+        "diag_cvr_good": "🚀 **爆款转化率 (CVR = {:.2%})**：转化非常棒！只要加大流量就能起飞。",
         },
                               
     "en": {
@@ -147,6 +164,24 @@ LANG_DICT = {
         "target_days_label": "Target Stock Days",
         "tpl_inv": "📦 Inv Tpl",
         "error_inv_col": "❌ Missing column: Quantity_Available in Inventory Report",
+        # === NEW: Funnel & Diagnosis ===
+        "funnel_title": "📢 Storewide Conversion Funnel",
+        "funnel_stages": ["Impressions", "Clicks", "Sessions", "Units Sold"],
+        "funnel_chart_title": "Conversion Path: Impressions -> Sales",
+        "diag_title": "🕵️‍♂️ Amazon Health Check:",
+        
+        # CTR Diagnosis
+        "diag_cvr_bad": "❌ **Critical CTR ({:.2%})**: Below 0.3%. Action: Retake main image or check keyword relevance.",
+        "diag_ctr_mid": "⚠️ **Average CTR ({:.2%})**: Acceptable but room for improvement.",
+        "diag_ctr_good": "✅ **Excellent CTR ({:.2%})**: Your main image is working well!",
+        
+        # Click Quality Diagnosis
+        "diag_click_bad": "⚠️ **Low Traffic Quality ({:.0%} valid)**: Potential bot clicks or slow page load speed.",
+        
+        # CVR Diagnosis
+        "diag_cvr_bad": "❌ **Low CVR ({:.2%})**: Traffic is wasted. Action: Optimize listing, reviews, or price.",
+        "diag_cvr_mid": "ℹ️ **Normal CVR ({:.2%})**: Within industry standards.",
+        "diag_cvr_good": "🚀 **High CVR ({:.2%})**: Potential Best Seller! Scale up your ads.",
           }
 }
 # ==========================================
@@ -706,7 +741,7 @@ with st.expander("点击展开 SQL 控制台", expanded=False):
 # --- 🎨 核心功能：全店销售漏斗 (Sales Funnel) ---
 # ==========================================
 st.divider()
-st.subheader("📢 全店流量转化漏斗 (Funnel Analysis)")
+st.subheader(text["funnel_title"])
 
 # 1. 准备数据 (从 sku_group 汇总)
 total_impressions = sku_group['Impressions'].sum()
@@ -716,8 +751,9 @@ total_units = sku_group['Amount'].sum() # 假设 Amount 是销量(Units)
 
 # 2. 绘制漏斗图
 fig_funnel = go.Figure(go.Funnel(#go.Figure: 就像是买了一块画布。go.Funnel: 告诉程序，我们要在这块画布上画一个“漏斗”。
-    y = ["曝光量 (Impressions)", "点击量 (Clicks)", "访客数 (Sessions)", "销量 (Units)"],
+    y = [text["funnel_stages"]],
     x = [total_impressions, total_clicks, total_sessions, total_units],
+    texttemplate = "%{value:,.0f}",  # 强制显示完整数字
     textposition = "inside",
     textinfo = "value+percent previous", # 显示数值 + 占上一步的百分比
     opacity = 0.65, #设置透明度。0.65 让颜色看起来不那么刺眼，更有质感。
@@ -725,7 +761,7 @@ fig_funnel = go.Figure(go.Funnel(#go.Figure: 就像是买了一块画布。go.Fu
 ))
 
 fig_funnel.update_layout( #update_layout: 调整画布的整体属性。
-    title_text="流量 -> 销量 转化链路",
+    title_text=text["funnel_chart_title"],
     height=400
 )
 
@@ -739,21 +775,25 @@ if total_impressions > 0:
     click_quality = total_sessions / total_clicks if total_clicks > 0 else 0
     cvr = total_units / total_sessions if total_sessions > 0 else 0
 
-    st.markdown("#### 🕵️‍♂️ 智能诊断报告：")
+    st.markdown(f"#### {text['diag_title']}")
     
-    # 诊断 CTR
-    if ctr < 0.005: # 0.5%
-        st.error(f"❌ **曝光转化极差 (CTR = {ctr:.2%})**：你的主图或标题可能没有吸引力，或者广告词跑偏了。")
+    # --- CTR 诊断 ---
+    if ctr < 0.003:
+        st.error(text["diag_ctr_bad"].format(ctr)) # .format() 把数值填进字典的占位符里
+    elif ctr > 0.01:
+        st.success(text["diag_ctr_good"].format(ctr))
     else:
-        st.success(f"✅ **点击率健康 (CTR = {ctr:.2%})**：主图表现不错。")
+        st.warning(text["diag_ctr_mid"].format(ctr))
         
-    # 诊断 点击质量
+    # --- 点击质量诊断 ---
     if click_quality < 0.6: 
-        st.warning(f"⚠️ **无效点击过多 ({click_quality:.0%})**：每 10 个点击只有 {int(click_quality*10)} 个人真正进店。可能存在恶意点击，或网页加载太慢。")
+        st.warning(text["diag_click_bad"].format(click_quality))
     
-    # 诊断 CVR
-    if cvr < 0.05: # 5%
-        st.error(f"❌ **内功不足 (CVR = {cvr:.2%})**：流量进来了但没人买。请检查：价格是否过高？是否有差评？描述是否太烂？")
-    elif cvr > 0.15:
-        st.balloons() # 只有表现特别好时才放气球
-        st.success(f"🚀 **爆款潜质 (CVR = {cvr:.2%})**：转化率非常高！建议加大广告预算扩量。")
+    # --- CVR 诊断 ---
+    if cvr < 0.05:
+        st.error(text["diag_cvr_bad"].format(cvr))
+    elif cvr > 0.10:
+        st.balloons()
+        st.success(text["diag_cvr_good"].format(cvr))
+    else:
+        st.info(text["diag_cvr_mid"].format(cvr))
