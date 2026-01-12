@@ -560,42 +560,6 @@ if uploaded_files:
             st.metric(text["metric_profit"], f"{text['sign']}{net_profit:,.2f}", f"{real_margin*100:.1f}%")
         with c4:
             st.metric(text["metric_ad"], f"{text['sign']}{total_real_ad+ other_costs:,.2f}")
-        #广告吸血鬼
-        st.divider()
-        st.subheader(text['vampire_title'])
-        vampire_mask = (sku_group['Real_Ad_Spend'] > 0) & (sku_group['ROAS'] < sku_group['BE_ROAS'])
-        vampires = sku_group[vampire_mask].sort_values(by='ROAS')
-        if not vampires.empty:
-            st.warning(text['vampire_help'].format(len(vampires)))
-            vampire_display = vampires[['SKU', 'Total_Sales', 'Real_Ad_Spend', 'ROAS', 'BE_ROAS', 'CVR']].copy()
-            vampire_display.columns  = [
-                text["col_sku"], 
-                text["metric_sales"], 
-                text["col_ad_spend"], 
-                text["roas_label"], 
-                text["col_be_roas"], 
-                text["metric_cvr"]
-                ]
-            st.dataframe(vampire_display.style.format({
-                text["metric_cvr"]: '{:.2%}',
-                text["col_ad_spend"]: '{:.2f}',
-                text["roas_label"]: '{:.2f}',
-                text["col_be_roas"]: '{:.2f}'
-            }).background_gradient(subset=[text['roas_label']], cmap='Reds_r'),
-              use_container_width=True, hide_index=True)
-            #财务贴士
-            st.info(text["recommend_action"])
-        else:
-            if total_real_ad == 0 and adv_dfs:
-                st.info(text["vampire_no_spend"])
-            
-            # 情况 2: 有广告花费，但由于表现都很好，没有一个是吸血鬼
-            elif total_real_ad > 0:
-                st.success(text["vampire_safe"])
-            
-            # 情况 3: 根本没上传广告表
-            else:
-                st.info(text["vampire_none"])
         
         # 调用绘图函数
         fig_1, fig_2 = plot_charts(filtered_df,text)
@@ -633,6 +597,42 @@ if uploaded_files:
         data=csv,
         file_name='top_5_products.csv',
         mime='text/csv'
+        #广告吸血鬼
+        st.divider()
+        st.subheader(text['vampire_title'])
+        vampire_mask = (sku_group['Real_Ad_Spend'] > 0) & (sku_group['ROAS'] < sku_group['BE_ROAS'])
+        vampires = sku_group[vampire_mask].sort_values(by='ROAS')
+        if not vampires.empty:
+            st.warning(text['vampire_help'].format(len(vampires)))
+            vampire_display = vampires[['SKU', 'Total_Sales', 'Real_Ad_Spend', 'ROAS', 'BE_ROAS', 'CVR']].copy()
+            vampire_display.columns  = [
+                text["col_sku"], 
+                text["metric_sales"], 
+                text["col_ad_spend"], 
+                text["roas_label"], 
+                text["col_be_roas"], 
+                text["metric_cvr"]
+                ]
+            st.dataframe(vampire_display.style.format({
+                text["metric_cvr"]: '{:.2%}',
+                text["col_ad_spend"]: '{:.2f}',
+                text["roas_label"]: '{:.2f}',
+                text["col_be_roas"]: '{:.2f}'
+            }).background_gradient(subset=[text['roas_label']], cmap='Reds_r'),
+              use_container_width=True, hide_index=True)
+            #财务贴士
+            st.info(text["recommend_action"])
+        else:
+            if total_real_ad == 0 and adv_dfs:
+                st.info(text["vampire_no_spend"])
+            
+            # 情况 2: 有广告花费，但由于表现都很好，没有一个是吸血鬼
+            elif total_real_ad > 0:
+                st.success(text["vampire_safe"])
+            
+            # 情况 3: 根本没上传广告表
+            else:
+                st.info(text["vampire_none"])
         )
         # ==========================================
         # --- 智能补货建议板块 ---
