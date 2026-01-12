@@ -737,63 +737,63 @@ with st.expander("点击展开 SQL 控制台", expanded=False):
             st.error("❌ 数据未加载，请先上传报表！")
 
 
-    # ==========================================
-    # --- 🎨 核心功能：全店销售漏斗 (Sales Funnel) ---
-    # ==========================================
-    st.divider()
-    st.subheader(text["funnel_title"])
+# ==========================================
+# --- 🎨 核心功能：全店销售漏斗 (Sales Funnel) ---
+# ==========================================
+st.divider()
+st.subheader(text["funnel_title"])
 
-    # 1. 准备数据 (从 sku_group 汇总)
-    total_impressions = sku_group['Impressions'].sum()
-    total_clicks = sku_group['Clicks'].sum()
-    total_sessions = sku_group['Sessions'].sum()
-    total_units = sku_group['Amount'].sum() # 假设 Amount 是销量(Units)
+# 1. 准备数据 (从 sku_group 汇总)
+total_impressions = sku_group['Impressions'].sum()
+total_clicks = sku_group['Clicks'].sum()
+total_sessions = sku_group['Sessions'].sum()
+total_units = sku_group['Amount'].sum() # 假设 Amount 是销量(Units)
 
-    # 2. 绘制漏斗图
-    fig_funnel = go.Figure(go.Funnel(#go.Figure: 就像是买了一块画布。go.Funnel: 告诉程序，我们要在这块画布上画一个“漏斗”。
-        y = [text["funnel_stages"]],
-        x = [total_impressions, total_clicks, total_sessions, total_units],
-        texttemplate = "%{value:,.0f}",  # 强制显示完整数字
-        textposition = "inside",
-        textinfo = "value+percent previous", # 显示数值 + 占上一步的百分比
-        opacity = 0.65, #设置透明度。0.65 让颜色看起来不那么刺眼，更有质感。
-        marker = {"color": ["#2075b1", "#ff7f0e", "#2ca02c", "#d62728"]} # 蓝橙绿红配色
-    ))
+# 2. 绘制漏斗图
+fig_funnel = go.Figure(go.Funnel(#go.Figure: 就像是买了一块画布。go.Funnel: 告诉程序，我们要在这块画布上画一个“漏斗”。
+    y = [text["funnel_stages"]],
+    x = [total_impressions, total_clicks, total_sessions, total_units],
+    texttemplate = "%{value:,.0f}",  # 强制显示完整数字
+    textposition = "inside",
+    textinfo = "value+percent previous", # 显示数值 + 占上一步的百分比
+    opacity = 0.65, #设置透明度。0.65 让颜色看起来不那么刺眼，更有质感。
+    marker = {"color": ["#2075b1", "#ff7f0e", "#2ca02c", "#d62728"]} # 蓝橙绿红配色
+))
 
-    fig_funnel.update_layout( #update_layout: 调整画布的整体属性。
-        title_text=text["funnel_chart_title"],
-        height=400
-    )
+fig_funnel.update_layout( #update_layout: 调整画布的整体属性。
+    title_text=text["funnel_chart_title"],
+    height=400
+)
 
-    st.plotly_chart(fig_funnel, use_container_width=True)
+st.plotly_chart(fig_funnel, use_container_width=True)
 
-    # 3. 自动生成业务诊断 (Data Storytelling)
-    # 这是一个高级分析师该干的事：不只给图，还给结论
-    if total_impressions > 0:
-        ctr = total_clicks / total_impressions
-        # 注意：这里计算的是 点击->访客 的流失，通常 Clicks 和 Sessions 应该接近
-        click_quality = total_sessions / total_clicks if total_clicks > 0 else 0
-        cvr = total_units / total_sessions if total_sessions > 0 else 0
+# 3. 自动生成业务诊断 (Data Storytelling)
+# 这是一个高级分析师该干的事：不只给图，还给结论
+if total_impressions > 0:
+    ctr = total_clicks / total_impressions
+    # 注意：这里计算的是 点击->访客 的流失，通常 Clicks 和 Sessions 应该接近
+    click_quality = total_sessions / total_clicks if total_clicks > 0 else 0
+    cvr = total_units / total_sessions if total_sessions > 0 else 0
 
-        st.markdown(f"#### {text['diag_title']}")
+    st.markdown(f"#### {text['diag_title']}")
+    
+    # --- CTR 诊断 ---
+    if ctr < 0.003:
+        st.error(text["diag_ctr_bad"].format(ctr)) # .format() 把数值填进字典的占位符里
+    elif ctr > 0.01:
+        st.success(text["diag_ctr_good"].format(ctr))
+    else:
+        st.warning(text["diag_ctr_mid"].format(ctr))
         
-        # --- CTR 诊断 ---
-        if ctr < 0.003:
-            st.error(text["diag_ctr_bad"].format(ctr)) # .format() 把数值填进字典的占位符里
-        elif ctr > 0.01:
-            st.success(text["diag_ctr_good"].format(ctr))
-        else:
-            st.warning(text["diag_ctr_mid"].format(ctr))
-            
-        # --- 点击质量诊断 ---
-        if click_quality < 0.6: 
-            st.warning(text["diag_click_bad"].format(click_quality))
-        
-        # --- CVR 诊断 ---
-        if cvr < 0.05:
-            st.error(text["diag_cvr_bad"].format(cvr))
-        elif cvr > 0.10:
-            st.balloons()
-            st.success(text["diag_cvr_good"].format(cvr))
-        else:
-            st.info(text["diag_cvr_mid"].format(cvr))
+    # --- 点击质量诊断 ---
+    if click_quality < 0.6: 
+        st.warning(text["diag_click_bad"].format(click_quality))
+    
+    # --- CVR 诊断 ---
+    if cvr < 0.05:
+        st.error(text["diag_cvr_bad"].format(cvr))
+    elif cvr > 0.10:
+        st.balloons()
+        st.success(text["diag_cvr_good"].format(cvr))
+    else:
+        st.info(text["diag_cvr_mid"].format(cvr))
