@@ -5,24 +5,26 @@ import duckdb
 import plotly.graph_objects as go
 #设置页面标签 
 st.set_page_config(page_title="Amazon Analyzer", layout="wide")
-#Date,SKU,Total_Sales,Amount,Unit_Cost,Price销售表 (sales.csv)
-#Date,SKU,Sessions,流量表 (traffic.csv)
-#SKU, Weight, Real_FBA_Fee,运费和产品重量product_info.csv
-# 语言字典
 # ==========================================
 # 全量语言词库 (Translation Dictionary)
 # ==========================================
 LANG_DICT = {
-    "zh":{
+    "zh": {
         "title": "📦 亚马逊爆款分析器 v0.9 (真实数据版)",
         "guide_title": "📖 使用指南与数据规范 (必读)",
-        "guide_usage": "本系统通过**文件名关键字**自动分类。请确保文件包含：`sales` (销售)、`traffic` (流量)、`ad` (广告)、`product` (信息)。",
+        "guide_usage": "本系统通过**文件名关键字**自动分类。请确保文件名包含：`sales` (销售), `traffic` (流量), `ad` (广告), `product` (产品), `inventory` (库存)。",
         "guide_table": {
-            "type": ["销售表", "流量表", "广告表", "产品信息表"],
-            "cols": ["Date, SKU, Amount, Unit_Cost", "Date, SKU, Sessions", "SKU, Spend/Cost", "SKU,Real_FBA_Fee,Weight"],
-            "func": ["计算利润", "计算转化率", "诊断广告", "运费分级"]
-                       },
-        "guide_table_headers": ["报表类型", "必需列名", "功能描述"], 
+            "type": ["销售表", "流量表", "广告表", "产品信息表", "库存表"],
+            "cols": [
+                "Date, SKU, Amount, Unit_Cost", 
+                "Date, SKU, Sessions, Impressions, Clicks",  # <--- 重点：加了曝光和点击
+                "SKU, Spend (或 Cost)", 
+                "SKU, Real_FBA_Fee, Weight",
+                "SKU, Quantity_Available" # <--- 新增：库存表
+            ],
+            "func": ["计算毛利/净利", "计算CTR/CVR/漏斗", "诊断广告/ROAS", "精准运费计算", "智能补货建议"]
+        },
+        "guide_table_headers": ["报表类型", "核心必需列名", "对应分析功能"], 
         "upload_label": "上传报表 (支持多选拖入)",
         "sidebar_header": "📊 控制面板",
         "lang_select": "选择语言",
@@ -32,6 +34,8 @@ LANG_DICT = {
         "metric_qty": "📦 总销量",
         "metric_profit": "最终净利润",
         "metric_ad": "🔥 真实广告费",
+        "metric_storage": "📦 预估总仓储费",
+        "storage_help": "💡 仓储费根据 1-9月($0.87/cuft) 和 10-12月($2.40/cuft) 动态计算。",
         "chart_trend_title": "📈 每日销售趋势",
         "chart_pie_title": "🍕 SKU 销售占比",
         "table_title": "🏆 真实利润榜单",
@@ -65,48 +69,48 @@ LANG_DICT = {
         "vampire_no_spend": "ℹ️ 当前筛选时段内无广告花费。",
         "tpl_download_section": "📂 **下载标准模板 (填入数据后上传)：**",
         "tpl_sales": "📊 销售模板",
-        "tpl_traffic": "🌐 流量模板",
+        "tpl_traffic": "🌐 流量模板 (含曝光点击)",
         "tpl_ad": "🔥 广告模板",
         "tpl_info": "📦 信息模板",
+        "tpl_inv": "📦 库存模板",
         "tpl_tip": "💡 **小建议**：您可以直接下载模板，填入数据即可识别。",
-        "metric_storage": "📦 预估总仓储费",
-        "storage_help": "💡 仓储费根据 1-9月($0.87/cuft) 和 10-12月($2.40/cuft) 动态计算。",
         "metric_v": "🚀 日均销量 (14天)",
         "metric_days": "⌛ 可售天数",
         "restock_title": "📊 智能补货建议 (基于14天销量动态)",
         "col_inv": "当前可用库存",
         "col_suggest": "建议补货量",
         "target_days_label": "目标库存覆盖天数",
-        "tpl_inv": "📦 库存模板",
-        "error_inv_col" :  "❌ 库存表中缺少关键列:Quantity_Available",
-              # === 漏斗图与诊断部分 ===
+        "error_inv_col" :  "❌ 库存表中缺少关键列: Quantity_Available",
+
+        # === 漏斗图与诊断部分 ===
         "funnel_title": "📢 全店流量转化漏斗 (Funnel Analysis)",
         "funnel_stages": ["曝光量 (Impressions)", "点击量 (Clicks)", "访客数 (Sessions)", "销量 (Units)"],
         "funnel_chart_title": "流量 -> 销量 转化链路",
         "diag_title": "🕵️‍♂️ 亚马逊运营体检报告：",
-        # CTR 诊断语
         "diag_ctr_bad": "❌ **主图急需优化 (CTR = {:.2%})**：低于 0.3% 的及格线。建议：重拍主图，或检查广告词是否太泛。",
         "diag_ctr_mid": "⚠️ **主图表现平平 (CTR = {:.2%})**：在行业平均水平，还有提升空间。",
         "diag_ctr_good": "✅ **主图很有吸引力 (CTR = {:.2%})**：表现优异！",
-        
-        # 点击质量诊断语
         "diag_click_bad": "⚠️ **无效点击过多 (有效率 {:.0%})**：可能存在恶意点击，或网页加载太慢。",
-        
-        # CVR 诊断语
         "diag_cvr_bad": "❌ **转化率偏低 (CVR = {:.2%})**：流量进来了留不住。建议：优化五点描述、增加好评、检查价格优势。",
         "diag_cvr_mid": "ℹ️ **转化率正常 (CVR = {:.2%})**：符合大多数类目标准。",
-        "diag_cvr_good": "🚀 **爆款转化率 (CVR = {:.2%})**：转化非常棒！只要加大流量就能起飞。",
-        },
-                              
+        "diag_cvr_good": "🚀 **爆款转化率 (CVR = {:.2%})**：转化非常棒！只要加大流量就能起飞。"
+    },
+
     "en": {
         "title": "📦 Amazon Analyzer v0.9",
         "guide_title": "📖 Usage Guide & Data Standards",
-        "guide_usage": "System identifies files by **keywords**: `sales`, `traffic`, `ad`, `product`.",
+        "guide_usage": "System identifies files by **keywords**: `sales`, `traffic`, `ad`, `product`, `inventory`.",
         "guide_table": {
-            "type": ["Sales", "Traffic", "Ads", "Info"],
-            "cols": ["Date, SKU, Amount, Unit_Cost", "Date, SKU, Sessions", "SKU, Spend", "SKU,Real_FBA_Fee,Weight"],
-            "func": ["Profit", "CVR", "Ad Audit", "Shipping"]
-                       },
+            "type": ["Sales", "Traffic", "Ads", "Info", "Inventory"],
+            "cols": [
+                "Date, SKU, Amount, Unit_Cost", 
+                "Date, SKU, Sessions, Impressions, Clicks", 
+                "SKU, Spend (or Cost)", 
+                "SKU, Real_FBA_Fee, Weight",
+                "SKU, Quantity_Available"
+            ],
+            "func": ["Profit Analysis", "CTR/CVR/Funnel", "Ad Diagnosis", "Shipping Calc", "Restock Plan"]
+        },
         "guide_table_headers": ["Type", "Required Columns", "Features"],
         "upload_label": "Upload Reports (Drag & Drop)",
         "sidebar_header": "Dashboard",
@@ -117,6 +121,8 @@ LANG_DICT = {
         "metric_qty": "📦 Volume",
         "metric_profit": "Net Profit",
         "metric_ad": "🔥 Ad Spend",
+        "metric_storage": "📦 Est. Storage Fee",
+        "storage_help": "💡 Jan-Sep($0.87) & Oct-Dec($2.40) per cuft.",
         "chart_trend_title": "📈 Daily Sales Trend",
         "chart_pie_title": "🍕 SKU Distribution",
         "table_title": "🏆 Profit Ranking",
@@ -153,36 +159,29 @@ LANG_DICT = {
         "tpl_traffic": "🌐 Traffic Tpl",
         "tpl_ad": "🔥 Ad Tpl",
         "tpl_info": "📦 Info Tpl",
+        "tpl_inv": "📦 Inv Tpl",
         "tpl_tip": "💡 **Tip**: Use templates for best results.",
-        "metric_storage": "📦 Est. Total Storage",
-        "storage_help": "💡 Storage fee calculated based on Jan-Sep($0.87) and Oct-Dec($2.40).", 
         "metric_v": "🚀 Daily Velocity",
         "metric_days": "⌛ Days Left",
         "restock_title": "📊 Smart Restock Plan",
         "col_inv": "Available Stock",
         "col_suggest": "Suggest Qty",
         "target_days_label": "Target Stock Days",
-        "tpl_inv": "📦 Inv Tpl",
-        "error_inv_col": "❌ Missing column: Quantity_Available in Inventory Report",
-        # === NEW: Funnel & Diagnosis ===
+        "error_inv_col": "❌ Missing column: Quantity_Available",
+
+        # === Funnel & Diagnosis ===
         "funnel_title": "📢 Storewide Conversion Funnel",
         "funnel_stages": ["Impressions", "Clicks", "Sessions", "Units Sold"],
         "funnel_chart_title": "Conversion Path: Impressions -> Sales",
-        "diag_title": "🕵️‍♂️ Amazon Health Check:",
-        
-        # CTR Diagnosis
-        "diag_cvr_bad": "❌ **Critical CTR ({:.2%})**: Below 0.3%. Action: Retake main image or check keyword relevance.",
+        "diag_title": "🕵️‍♂️ Amazon Health Check",
+        "diag_ctr_bad": "❌ **Critical CTR ({:.2%})**: Below 0.3%. Action: Check main image.",
         "diag_ctr_mid": "⚠️ **Average CTR ({:.2%})**: Acceptable but room for improvement.",
         "diag_ctr_good": "✅ **Excellent CTR ({:.2%})**: Your main image is working well!",
-        
-        # Click Quality Diagnosis
-        "diag_click_bad": "⚠️ **Low Traffic Quality ({:.0%} valid)**: Potential bot clicks or slow page load speed.",
-        
-        # CVR Diagnosis
-        "diag_cvr_bad": "❌ **Low CVR ({:.2%})**: Traffic is wasted. Action: Optimize listing, reviews, or price.",
+        "diag_click_bad": "⚠️ **Low Traffic Quality ({:.0%} valid)**: Potential bot clicks or slow page load.",
+        "diag_cvr_bad": "❌ **Low CVR ({:.2%})**: Traffic is wasted. Action: Optimize listing or price.",
         "diag_cvr_mid": "ℹ️ **Normal CVR ({:.2%})**: Within industry standards.",
-        "diag_cvr_good": "🚀 **High CVR ({:.2%})**: Potential Best Seller! Scale up your ads.",
-          }
+        "diag_cvr_good": "🚀 **High CVR ({:.2%})**: Potential Best Seller! Scale up your ads."
+    }
 }
 # ==========================================
 # 1. 技能区 (Functions)
