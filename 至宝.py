@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import duckdb
+import plotly.graph_objects as go
 #设置页面标签 
 st.set_page_config(page_title="Amazon Analyzer", layout="wide")
 #Date,SKU,Total_Sales,Amount,Unit_Cost,Price销售表 (sales.csv)
@@ -699,3 +700,60 @@ with st.expander("点击展开 SQL 控制台", expanded=False):
                 st.error(f"SQL 语法错误: {e}")
         else:
             st.error("❌ 数据未加载，请先上传报表！")
+
+
+# ==========================================
+# --- 🎨 核心功能：全店销售漏斗 (Sales Funnel) ---
+# ==========================================
+st.divider()
+st.subheader("📢 全店流量转化漏斗 (Funnel Analysis)")
+
+# 1. 准备数据 (从 sku_group 汇总)
+total_impressions = sku_group['Impressions'].sum()
+total_clicks = sku_group['Clicks'].sum()
+total_sessions = sku_group['Sessions'].sum()
+total_units = sku_group['Amount'].sum() # 假设 Amount 是销量(Units)
+
+# 2. 绘制漏斗图
+fig_funnel = go.Figure(go.Funnel(#go.Figure: 就像是买了一块画布。go.Funnel: 告诉程序，我们要在这块画布上画一个“漏斗”。
+    y = ["曝光量 (Impressions)", "点击量 (Clicks)", "访客数 (Sessions)", "销量 (Units)"],
+    x = [total_impressions, total_clicks, total_sessions, total_units],
+    textposition = "inside",
+    textinfo = "value+percent previous", # 显示数值 + 占上一步的百分比
+    opacity = 0.65, #设置透明度。0.65 让颜色看起来不那么刺眼，更有质感。
+    marker = {"color": ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]} # 蓝橙绿红配色
+))
+
+fig_funnel.update_layout( #update_layout: 调整画布的整体属性。
+    title_text="流量 -> 销量 转化链路",
+    height=400
+)
+
+st.plotly_chart(fig_funnel, use_container_width=True)
+
+# 3. 自动生成业务诊断 (Data Storytelling)
+# 这是一个高级分析师该干的事：不只给图，还给结论
+if total_impressions > 0:
+    ctr = total_clicks / total_impressions
+    # 注意：这里计算的是 点击->访客 的流失，通常 Clicks 和 Sessions 应该接近
+    click_quality = total_sessions / total_clicks if total_clicks > 0 else 0
+    cvr = total_units / total_sessions if total_sessions > 0 else 0
+
+    st.markdown("#### 🕵️‍♂️ 智能诊断报告：")
+    
+    # 诊断 CTR
+    if ctr < 0.005: # 0.5%
+        st.error(f"❌ **曝光转化极差 (CTR = {ctr:.2%})**：你的主图或标题可能没有吸引力，或者广告词跑偏了。")
+    else:
+        st.success(f"✅ **点击率健康 (CTR = {ctr:.2%})**：主图表现不错。")
+        
+    # 诊断 点击质量
+    if click_quality < 0.6: 
+        st.warning(f"⚠️ **无效点击过多 ({click_quality:.0%})**：每 10 个点击只有 {int(click_quality*10)} 个人真正进店。可能存在恶意点击，或网页加载太慢。")
+    
+    # 诊断 CVR
+    if cvr < 0.05: # 5%
+        st.error(f"❌ **内功不足 (CVR = {cvr:.2%})**：流量进来了但没人买。请检查：价格是否过高？是否有差评？描述是否太烂？")
+    elif cvr > 0.15:
+        st.balloons() # 只有表现特别好时才放气球
+        st.success(f"🚀 **爆款潜质 (CVR = {cvr:.2%})**：转化率非常高！建议加大广告预算扩量。")
