@@ -78,9 +78,9 @@ LANG_DICT = {
         "col_suggest": "建议补货量",
         "target_days_label": "目标库存覆盖天数",
         "tpl_inv": "📦 库存模板",
-        "error_inv_col" :  "❌ 库存表中缺少关键列:Quantity_Available"
+        "error_inv_col" :  "❌ 库存表中缺少关键列:Quantity_Available",
+              # === 漏斗图与诊断部分 ===
         "funnel_title": "📢 全店流量转化漏斗 (Funnel Analysis)",
-        # === 漏斗图与诊断部分 ===
         "funnel_stages": ["曝光量 (Impressions)", "点击量 (Clicks)", "访客数 (Sessions)", "销量 (Units)"],
         "funnel_chart_title": "流量 -> 销量 转化链路",
         "diag_title": "🕵️‍♂️ 亚马逊运营体检报告：",
