@@ -704,7 +704,65 @@ if uploaded_files:
 else:
     st.info(text["upload_info"])
 
+# ==========================================
+# --- 🎨 核心功能：全店销售漏斗 (Sales Funnel) ---
+# ==========================================
+st.divider()
+st.subheader(text["funnel_title"]) # 使用字典标题
 
+# 1. 准备数据
+total_impressions = sku_group['Impressions'].sum()
+total_clicks = sku_group['Clicks'].sum()
+total_sessions = sku_group['Sessions'].sum()
+total_units = sku_group['Amount'].sum()
+
+# 2. 绘制漏斗图
+fig_funnel = go.Figure(go.Funnel(
+    # 关键修改：直接读取字典里的列表 ["曝光量", "点击量"...]
+    y = text["funnel_stages"], 
+    x = [total_impressions, total_clicks, total_sessions, total_units],
+    textposition = "inside",
+    texttemplate = "%{value:,.0f}", # 强制显示完整数字
+    textinfo = "value+percent previous",
+    opacity = 0.65, 
+    marker = {"color": ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]}
+))
+
+fig_funnel.update_layout(
+    title_text=text["funnel_chart_title"], # 使用字典图表标题
+    height=400
+)
+
+st.plotly_chart(fig_funnel, use_container_width=True)
+
+# 3. 智能诊断 (使用 .format 把数值填进字典的句子力)
+if total_impressions > 0:
+    ctr = total_clicks / total_impressions
+    click_quality = total_sessions / total_clicks if total_clicks > 0 else 0
+    cvr = total_units / total_sessions if total_sessions > 0 else 0
+
+    st.markdown(f"#### {text['diag_title']}")
+    
+    # --- CTR 诊断 ---
+    if ctr < 0.003:
+        st.error(text["diag_ctr_bad"].format(ctr)) # .format(ctr) 会把 ctr 的值填进 {:.2%} 里
+    elif ctr > 0.01:
+        st.success(text["diag_ctr_good"].format(ctr))
+    else:
+        st.warning(text["diag_ctr_mid"].format(ctr))
+        
+    # --- 点击质量诊断 ---
+    if click_quality < 0.6: 
+        st.warning(text["diag_click_bad"].format(click_quality))
+    
+    # --- CVR 诊断 ---
+    if cvr < 0.05:
+        st.error(text["diag_cvr_bad"].format(cvr))
+    elif cvr > 0.10:
+        st.balloons()
+        st.success(text["diag_cvr_good"].format(cvr))
+    else:
+        st.info(text["diag_cvr_mid"].format(cvr))
 # ==========================================
 # --- 🔬 SQL 实验室 (新增功能) ---
 # ==========================================
@@ -735,63 +793,4 @@ with st.expander("点击展开 SQL 控制台", expanded=False):
                 st.error(f"SQL 语法错误: {e}")
         else:
             st.error("❌ 数据未加载，请先上传报表！")
-        # ==========================================
-        # --- 🎨 核心功能：全店销售漏斗 (Sales Funnel) ---
-        # ==========================================
-        st.divider()
-        st.subheader(text["funnel_title"]) # 使用字典标题
-
-        # 1. 准备数据
-        total_impressions = sku_group['Impressions'].sum()
-        total_clicks = sku_group['Clicks'].sum()
-        total_sessions = sku_group['Sessions'].sum()
-        total_units = sku_group['Amount'].sum()
-
-        # 2. 绘制漏斗图
-        fig_funnel = go.Figure(go.Funnel(
-            # 关键修改：直接读取字典里的列表 ["曝光量", "点击量"...]
-            y = text["funnel_stages"], 
-            x = [total_impressions, total_clicks, total_sessions, total_units],
-            textposition = "inside",
-            texttemplate = "%{value:,.0f}", # 强制显示完整数字
-            textinfo = "value+percent previous",
-            opacity = 0.65, 
-            marker = {"color": ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]}
-        ))
-
-        fig_funnel.update_layout(
-            title_text=text["funnel_chart_title"], # 使用字典图表标题
-            height=400
-        )
-
-        st.plotly_chart(fig_funnel, use_container_width=True)
-
-        # 3. 智能诊断 (使用 .format 把数值填进字典的句子力)
-        if total_impressions > 0:
-            ctr = total_clicks / total_impressions
-            click_quality = total_sessions / total_clicks if total_clicks > 0 else 0
-            cvr = total_units / total_sessions if total_sessions > 0 else 0
-
-            st.markdown(f"#### {text['diag_title']}")
-            
-            # --- CTR 诊断 ---
-            if ctr < 0.003:
-                st.error(text["diag_ctr_bad"].format(ctr)) # .format(ctr) 会把 ctr 的值填进 {:.2%} 里
-            elif ctr > 0.01:
-                st.success(text["diag_ctr_good"].format(ctr))
-            else:
-                st.warning(text["diag_ctr_mid"].format(ctr))
-                
-            # --- 点击质量诊断 ---
-            if click_quality < 0.6: 
-                st.warning(text["diag_click_bad"].format(click_quality))
-            
-            # --- CVR 诊断 ---
-            if cvr < 0.05:
-                st.error(text["diag_cvr_bad"].format(cvr))
-            elif cvr > 0.10:
-                st.balloons()
-                st.success(text["diag_cvr_good"].format(cvr))
-            else:
-                st.info(text["diag_cvr_mid"].format(cvr))
-
+    
